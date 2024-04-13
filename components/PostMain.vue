@@ -1,25 +1,26 @@
 <template>
-  <div id="PostMain" class="flex border-b py-6">
-    <div class="cursor-pointer">
+  <div :id="`PostMain-${post.id}`" class="flex border-b py-6">
+    <div @click="isLoggedIn(post.user)" class="cursor-pointer">
       <img
-        src="https://picsum.photos/id/8//300/320"
+        :src="post.user.image"
         class="rounded-full max-h-[60px]"
         width="60"
       />
     </div>
     <div class="pl-3 w-full px-4">
-      <div class="flex items-center justify-between pb-0 5">
-        <button>
-          <span class="font-bold hover:underline cursor-pointer"
-            >User name</span
-          >
-          <span class="text-[13px] text-light text-gray-500 pl-1 cursor-pointer"
-            >User name</span
+      <div class="flex items-center justify-between pb-0.5">
+        <button @click="isLoggedIn(post.user)">
+          <span class="font-bold hover:underline cursor-pointer">{{
+            $generalStore.allLowerCaseNoCaps(post.user.name)
+          }}</span>
+          <span
+            class="text-[13px] text-light text-gray-500 pl-1 cursor-pointer"
+            >{{ post.user.name }}</span
           >
         </button>
 
         <button
-          class="border text-[15px] px-[21px] py-0 border-[#f02c56] text-[#f02c56] hover:bg-[#ffeef2] font-semibold rounded-md"
+          class="border text-[15px] px-[21px] py-0.5 border-[#f02c56] text-[#f02c56] hover:bg-[#ffeef2] font-semibold rounded-md"
         >
           Follow
         </button>
@@ -28,27 +29,31 @@
       <div
         class="text-[15px] pb-0.5 break-words md:max-w-[400px] max-w-[300px]"
       >
-        This is some text
+        {{ post.text }}
       </div>
       <div class="text-[14px] text-gray-500 pb-0.5">
         #fun #cool #SuperAwesome
       </div>
       <div class="text-[14px] pb-0.5 flex items-center font-semibold">
-        <UIcon name="i-heroicons-musical-note" class="h-[17px] w-[17px]" />
-        <div class="px-1">original sound - AWESOME</div>
-        <UIcon name="i-heroicons-heart-solid" class="h-5 w-5 text-red-500" />
+        <Icon name="mdi:music" size="17" />
+        <div class="px-1">
+          original sound -
+          {{ $generalStore.allLowerCaseNoCaps(post.user.name) }}
+        </div>
+        <Icon name="mdi:heart" size="20" />
       </div>
 
-      <div class="mt-2 5 flex">
+      <div class="mt-2.5 flex">
         <div
-          class="relative min-h-[480px] max-h-[580px] min-w-[260px] w-auto flex items-center rounded-xl cursor-pointer"
+          @click="displayPost(post)"
+          class="relative min-h-[480px] max-h-[580px] max-w-[260px] flex items-center rounded-xl cursor-pointer"
         >
           <video
+            v-if="post.video"
             ref="video"
             loop
-            muted
             controls
-            src="/videos/ship.mp4"
+            :src="'http://localhost:8000' + post.video"
             class="rounded-xl object-cover ml-0 h-full"
           />
 
@@ -59,35 +64,40 @@
             alt=""
           />
         </div>
-        <div class="relative">
+
+        <!-- Like Comment Share -->
+        <div class="relative mr-[75px]">
           <div class="absolute bottom-0 pl-2">
             <div class="pb-4 text-center">
               <button
-                class="rounded-full bg-gray-200 h-8 w-8 flex items-center cursor-pointer"
+                @click="isLiked ? unLikePost(post) : likePost(post)"
+                class="rounded-full bg-gray-200 h-8 w-8 flex items-center justify-center cursor-pointer"
               >
-                <UIcon name="i-heroicons-heart-solid" class="h-6 w-6 mx-auto" />
+                <Icon
+                  :name="!isLiked ? 'mdi:heart-outline' : 'mdi:heart'"
+                  :color="isLiked ? 'red' : ''"
+                  size="25"
+                />
               </button>
-              <span class="text-xs text-gray-800 font-semibold">34</span>
+              <span class="text-xs text-gray-800 font-semibold">{{
+                post.likes.length
+              }}</span>
             </div>
             <div class="pb-4 text-center">
               <button
-                class="rounded-full bg-gray-200 h-8 w-8 flex items-center cursor-pointer"
+                class="rounded-full bg-gray-200 h-8 w-8 flex items-center justify-center cursor-pointer"
               >
-                <UIcon
-                  name="i-heroicons-chat-bubble-oval-left-ellipsis-solid"
-                  class="h-6 w-6 mx-auto"
-                />
+                <Icon name="mdi:chat-processing-outline" size="26" />
               </button>
-              <span class="text-xs text-gray-800 font-semibold">21</span>
+              <span class="text-xs text-gray-800 font-semibold">{{
+                post.comments.length
+              }}</span>
             </div>
             <div class="pb-4 text-center">
               <button
-                class="rounded-full bg-gray-200 h-8 w-8 flex items-center cursor-pointer"
+                class="rounded-full bg-gray-200 h-8 w-8 flex items-center justify-center cursor-pointer"
               >
-                <UIcon
-                  name="i-heroicons-paper-airplane-solid"
-                  class="h-5 w-5 mx-auto -rotate-45"
-                />
+                <Icon name="mdi:share" size="26" />
               </button>
               <span class="text-xs text-gray-800 font-semibold">1</span>
             </div>
@@ -98,10 +108,82 @@
   </div>
 </template>
 
-<script setup lang="ts">
-let video: any = ref(null);
+<script setup>
+let props = defineProps(["post"]);
+const { post } = toRefs(props);
+const { $userStore, $generalStore } = useNuxtApp();
 
-// onMounted(() => video.value.play());
+let video = ref(null);
+
+onMounted(() => {
+  let observer = new IntersectionObserver(
+    function (entries) {
+      if (entries[0].isIntersecting) {
+        console.log("Element is playing" + post.value.id);
+        video.value.play();
+      } else {
+        console.log("Element is paused" + post.value.id);
+        video.value.pause();
+      }
+    },
+    { threshold: [0.6] }
+  );
+
+  observer.observe(document.getElementById(`PostMain-${post.value.id}`));
+});
+
+onUnmounted(() => {
+  video.value.pause();
+  video.value.currentTime = 0;
+  video.value.src = "";
+});
+
+const isLiked = computed(() => {
+  let res = post.value.likes.find((like) => like.user_id == $userStore.id);
+  if (res) return true;
+  return false;
+});
+
+const likePost = async (post) => {
+  if (!$userStore.id) {
+    $generalStore.isLoginOpen = true;
+    return;
+  }
+  try {
+    await $userStore.likePost(post);
+  } catch (error) {
+    console.log(error);
+  }
+};
+const unLikePost = async (post) => {
+  if (!$userStore.id) {
+    $generalStore.isLoginOpen = true;
+    return;
+  }
+  try {
+    await $userStore.unLikePost(post);
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const isLoggedIn = (user) => {
+  if (!$userStore.id) {
+    $generalStore.isLoginOpen = true;
+    return;
+  }
+  setTimeout(() => navigateTo(`/profile/${user.id}`), 200);
+};
+
+const displayPost = (post) => {
+  if (!$userStore.id) {
+    $generalStore.isLoginOpen = true;
+    return;
+  }
+
+  $generalStore.setBackUrl("/");
+  setTimeout(() => navigateTo(`/post/${post.id}`), 200);
+};
 </script>
 
 <style></style>

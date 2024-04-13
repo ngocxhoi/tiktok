@@ -36,8 +36,13 @@
 
       <div class="lg:hidden block pt-3" />
 
-      <div class="currsor-pointer">
-        <MenuItemFollow />
+      <div
+        v-if="$generalStore.suggested"
+        v-for="sug in $generalStore.suggested"
+      >
+        <div @click="isLoggedIn(sug)" class="cursor-pointer">
+          <MenuItemFollow :user="sug" />
+        </div>
       </div>
 
       <button class="lg:block hidden text-[#f02c56] pt-1 5 pl-2 text-[13px]">
@@ -54,8 +59,13 @@
 
       <div class="lg:hidden block pt-3" />
 
-      <div class="currsor-pointer">
-        <MenuItemFollow />
+      <div
+        v-if="$generalStore.following"
+        v-for="fol in $generalStore.following"
+      >
+        <div @click="isLoggedIn(fol)" class="cursor-pointer">
+          <MenuItemFollow :user="fol" />
+        </div>
       </div>
 
       <button class="lg:block hidden text-[#f02c56] pt-1 5 pl-2 text-[13px]">
@@ -86,7 +96,16 @@
 </template>
 
 <script setup lang="ts">
+const { $generalStore, $userStore } = useNuxtApp();
 const route = useRoute();
+
+const isLoggedIn = (fol: any) => {
+  if (!$userStore.id) {
+    $generalStore.isLoginOpen = true;
+    return;
+  }
+  setTimeout(() => navigateTo(`/profile/${fol.id}`), 200);
+};
 </script>
 
 <style></style>

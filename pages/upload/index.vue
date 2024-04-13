@@ -1,6 +1,18 @@
 <template>
   <UploadError :errorType="errorType" />
 
+  <div
+    v-if="isUploading"
+    class="fixed flex items-center justify-center top-0 left-0 w-full h-screen bg-black/50 z-50"
+  >
+    <Icon
+      name="mingcute:loading-line"
+      class="animate-spin ml-1"
+      size="100"
+      color="#fff"
+    />
+  </div>
+
   <UploadLayout>
     <div
       class="w-full mt-[80px] mb-[40px] bg-white shadow-lg rounded-mx py-6 md:px-10 px-4"
@@ -62,9 +74,7 @@
             class="absolute right-4 bottom-6 z-20"
           />
           <video
-            autoplay
-            loop
-            muted
+            controls
             class="absolute rounded-xl object-cover z-10 p-[13px] w-full h-full"
             :src="fileDisplay"
           />
@@ -135,10 +145,20 @@
               class="hover:bg-gray-100 text-gray-500 px-10 py-2.5 mt-8"
             />
             <UButton
+              @click="createPost()"
               label="Post"
               variant="outline"
               class="text-white bg-[--red-color] hover:text-white hover:bg-[--red-color] px-10 py-2.5 mt-8"
             />
+          </div>
+
+          <div v-if="errors" class="mt-4">
+            <div class="text-red-600" v-if="errors && errors.video">
+              {{ errors.video[0] }}
+            </div>
+            <div class="text-red-600" v-if="errors && errors.text">
+              {{ errors.text[0] }}
+            </div>
           </div>
         </div>
       </div>
@@ -148,6 +168,7 @@
 
 <script setup>
 import UploadLayout from "~/layouts/UploadLayout.vue";
+const { $userStore } = useNuxtApp();
 
 let caption = ref("");
 let file = ref(null);
@@ -184,6 +205,38 @@ const discard = () => {
   fileDisplay.value = null;
   fileData.value = null;
   caption.value = "";
+};
+
+const createPost = async () => {
+  errors.value = null;
+
+  let data = new FormData();
+
+  data.append("video", fileData.value || "");
+  data.append("text", caption.value);
+
+  if (fileData.value && caption.value) {
+    isUploading.value = true;
+  }
+
+  try {
+    await $userStore.getTokens();
+
+    let dataRes = await $userStore.createPost(data);
+    console.log(dataRes);
+    const responses = dataRes.responses._data;
+    if (responses && responses.errors) throw responses.errors;
+
+    if (dataRes.responses.status == 200) {
+      setTimeout(() => {
+        navigateTo("/profile/" + $userStore.id);
+        isUploading.value = false;
+      }, 1000);
+    }
+  } catch (error) {
+    errors.value = error;
+    isUploading.value = false;
+  }
 };
 
 const clearVideo = () => {

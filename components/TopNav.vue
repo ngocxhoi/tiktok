@@ -32,9 +32,18 @@
       <div
         class="flex items-center justify-end gap-3 min-w-[275px] max-w-[320px] w-full"
       >
-        <UButton color="white" variant="solid" to="/upload">
+        <UButton
+          v-if="$userStore.id"
+          color="white"
+          variant="solid"
+          to="/upload"
+        >
           <template #leading>
-            <UIcon name="i-heroicons-plus" class="bg-black h-5 w-5" />
+            <UIcon
+              @click="isLoggedIn()"
+              name="i-heroicons-plus"
+              class="bg-black h-5 w-5"
+            />
           </template>
           <p class="text-black text-[15px] px-2 font-medium">Upload</p>
         </UButton>
@@ -43,10 +52,6 @@
           <UButton @click="$generalStore.isLoginOpen = true" color="red">
             <p class="text-white font-medium text-[15px] mx-2">Log in</p>
           </UButton>
-          <UIcon
-            name="i-heroicons-ellipsis-vertical"
-            class="text-[#161724] min-h-6 w-6"
-          />
         </div>
 
         <div v-else class="flex items-center">
@@ -60,7 +65,10 @@
           />
           <div class="relative">
             <UDropdown :items="dropdownMenu">
-              <UAvatar src="https://picsum.photos/id/12/200/300" class="mt-1" />
+              <UAvatar
+                :src="'http://localhost:8000' + $userStore.image"
+                class="mt-1"
+              />
               <template #item="{ item }">
                 <UIcon :name="item.icon" class="h-5 w-5" />
                 <span class="pl-2 font-semibold text-sm">{{ item.label }}</span>
@@ -82,15 +90,30 @@ const dropdownMenu = [
     {
       label: "Profile",
       icon: "i-heroicons-magnifying-glass",
+      click: () => {
+        navigateTo(`/profile/${$userStore.id}`);
+      },
     },
   ],
   [
     {
       label: "Log out",
       icon: "i-heroicons-arrow-right-start-on-rectangle",
+      click: () => {
+        $userStore.logout();
+        navigateTo("/");
+      },
     },
   ],
 ];
+
+const isLoggedIn = () => {
+  if ($userStore.id) {
+    navigateTo("/upload");
+  } else {
+    $generalStore.isLoginOpen = true;
+  }
+};
 </script>
 
 <style></style>

@@ -36,7 +36,7 @@
                 <img
                   class="rounded-full"
                   width="95"
-                  src="https://picsum.photos/id/8/300/320"
+                  :src="'http://localhost:8000' + userImage"
                 />
                 <div
                   class="absolute bottom-0 right-0 rounded-full bg-white shadow-xl border p-1 border-gray-300 inline-block w-[32px]"
@@ -49,10 +49,11 @@
                 </div>
               </label>
               <input
-                class="hidden"
+                hidden
+                ref="file"
                 type="file"
                 id="image"
-                @input="getUploadedImage($event)"
+                @input="getUploadedImage()"
                 accept="image/png, image/jpeg, image/jpg"
               />
             </div>
@@ -103,7 +104,8 @@
                   v-model="userBio"
                   maxlength="80"
                   class="resize-none w-full bg-[#F1F1F2] text-gray-800 border border-gray-300 rounded-md py-2.5 px-3 focus:outline-none"
-                />
+                  >{{ userBio }}</textarea
+                >
                 <div v-if="userBio" class="text-[11px] text-gray-500">
                   {{ userBio.length }}/80
                 </div>
@@ -170,16 +172,12 @@ import { Cropper, CircleStencil } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
 
 const { $userStore, $generalStore, $profileStore } = useNuxtApp();
+const { name, bio, image } = storeToRefs($userStore);
 
 const route = useRoute();
 
-// onMounted(() => {
-//   userName.value = name.value;
-//   userBio.value = bio.value;
-//   userImage.value = image.value;
-// });
-
 let file = ref(null);
+let fileData = ref(null);
 let cropper = ref(null);
 let uploadedImage = ref(null);
 let userImage = ref(null);
@@ -187,11 +185,93 @@ let userName = ref(null);
 let userBio = ref(null);
 let isUpdated = ref(false);
 
-const getUploadedImage = (e) => {
-  file.value = e.target.files[0];
-  uploadedImage.value = URL.createObjectURL(file.value);
+onMounted(() => {
+  userName.value = name.value;
+  userBio.value = bio.value;
+  userImage.value = image.value;
+});
+
+const getUploadedImage = () => {
+  uploadedImage.value = URL.createObjectURL(file.value.files[0]);
+  fileData.value = file.value.files[0];
 };
 
-const updateUserInfo = () => {};
-const cropAndUpdateImage = () => {};
+const updateUserInfo = async () => {
+  try {
+    await $userStore.getTokens();
+    await $userStore.updateUser(userName.value, userBio.value);
+    await $profileStore.getProfile(route.params.id);
+
+    userName.value = name.value;
+    userBio.value = bio.value;
+
+    setTimeout(() => {
+      $generalStore.isEditProfileOpen = false;
+    }, 200);
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const cropAndUpdateImage = async () => {
+  const { coordinates } = cropper.value;
+
+  let data = new FormData();
+
+  data.append("image", fileData.value || "");
+  data.append("width", Math.round(coordinates.width));
+  data.append("height", Math.round(coordinates.height));
+  data.append("left", Math.round(coordinates.left));
+  data.append("top", Math.round(coordinates.top));
+
+  try {
+    await $userStore.getTokens();
+    await $userStore.updateUserImage(data);
+    await $userStore.getUser();
+    await $profileStore.getProfile(route.params.id);
+
+    $generalStore.updateSideMenuImage(
+      $generalStore.suggested,
+      $userStore.id,
+      $userStore.image
+    );
+    $generalStore.updateSideMenuImage(
+      $generalStore.following,
+      $userStore.id,
+      $userStore.image
+    );
+
+    userImage.value = image.value;
+
+    setTimeout(() => {
+      $generalStore.isEditProfileOpen = false;
+    }, 200);
+
+    uploadedImage.value = null;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+watch(
+  () => userName.value,
+  () => {
+    if (!userName.value || userName.value == name.value) {
+      isUpdated.value = false;
+    } else {
+      isUpdated.value = true;
+    }
+  }
+);
+
+watch(
+  () => userBio.value,
+  () => {
+    if (!userName.value || userBio.value.length < 1) {
+      isUpdated.value = false;
+    } else {
+      isUpdated.value = true;
+    }
+  }
+);
 </script>
